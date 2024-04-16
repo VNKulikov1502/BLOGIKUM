@@ -1,8 +1,9 @@
-from core.constants import MAX_LENGTH
-from core.models import BlogModel
 from django.contrib.auth import get_user_model
 from django.db import models
 from django.urls import reverse
+
+from core.constants import MAX_LENGTH, MAX_LENGTH_TEXT
+from core.models import BlogModel
 
 User = get_user_model()
 
@@ -94,7 +95,7 @@ class Comment(models.Model):
         ordering = ('created_at',)
 
     def __str__(self):
-        return self.text
+        return self.text[:MAX_LENGTH_TEXT]
 
     def get_absolute_url(self):
         return reverse("blog:post_detail", kwargs={"post_id": self.post.pk})

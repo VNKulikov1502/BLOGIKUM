@@ -1,12 +1,12 @@
 from django.conf import settings
-from django.contrib import admin
-from django.urls import include, path, reverse_lazy
-from django.contrib.auth.forms import UserCreationForm
-from django.views.generic.edit import CreateView
 from django.conf.urls.static import static
+from django.contrib import admin
+from django.contrib.auth.forms import UserCreationForm
+from django.urls import include, path, reverse_lazy
+from django.views.generic.edit import CreateView
 
-handler404 = 'blogicum.views.page_not_found'
-handler500 = 'blogicum.views.failure_500'
+handler404 = 'core.views.page_not_found'
+handler500 = 'core.views.failure_500'
 
 urlpatterns = [
     path('', include('pages.urls')),

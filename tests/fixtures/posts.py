@@ -3,22 +3,17 @@ from io import BytesIO
 from typing import Tuple
 
 import pytest
-from PIL import Image
+from conftest import (N_PER_FIXTURE, N_PER_PAGE, KeyVal,
+                      _testget_context_item_by_class,
+                      get_a_post_get_response_safely,
+                      get_create_a_post_get_response_safely)
 from django.core.files.images import ImageFile
 from django.db.models import Model
 from django.forms import BaseForm
 from django.test import Client
 from django.utils import timezone
 from mixer.backend.django import Mixer
-
-from conftest import (
-    N_PER_FIXTURE,
-    N_PER_PAGE,
-    KeyVal,
-    get_a_post_get_response_safely,
-    get_create_a_post_get_response_safely,
-    _testget_context_item_by_class,
-)
+from PIL import Image
 
 
 @pytest.fixture

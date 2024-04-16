@@ -28,6 +28,8 @@ DEBUG = True
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
+    'www.rodionloh.pythonanywhere.com',
+    'rodionloh.pythonanywhere.com',
     # Когда проект будет опубликован и станет доступен для пользователей,
     # в этот список нужно будет добавить и адреса домена, где он будет размещён
 ]
@@ -106,7 +108,7 @@ INTERNAL_IPS = [
     '127.0.0.1',
 ]
 
-CSRF_FAILURE_VIEW = 'blogicum.views.csrf_failure'
+CSRF_FAILURE_VIEW = 'core.views.csrf_failure'
 
 EMAIL_BACKEND = 'django.core.mail.backends.filebased.EmailBackend'
 EMAIL_FILE_PATH = BASE_DIR / 'sent_emails'
