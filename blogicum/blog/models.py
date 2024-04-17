@@ -2,7 +2,8 @@ from django.contrib.auth import get_user_model
 from django.db import models
 from django.urls import reverse
 
-from core.constants import MAX_LENGTH, MAX_LENGTH_TEXT
+from core.constants import (MAX_LENGTH, MAX_LENGTH_FOR_COMMENT,
+                            MAX_LENGTH_FOR_POST_TEXT, MAX_LENGTH_TEXT)
 from core.models import BlogModel
 
 User = get_user_model()
@@ -38,7 +39,7 @@ class Category(BlogModel):
 
 class Post(BlogModel):
     title = models.CharField('Заголовок', max_length=MAX_LENGTH)
-    text = models.TextField('Текст')
+    text = models.TextField('Текст', max_length=MAX_LENGTH_FOR_POST_TEXT)
     pub_date = models.DateTimeField(
         'Дата и время публикации',
         help_text='Если установить дату и время в будущем '
@@ -46,20 +47,23 @@ class Post(BlogModel):
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        verbose_name='Автор публикации'
+        verbose_name='Автор публикации',
+        related_name='posts'
     )
     location = models.ForeignKey(
         Location,
         null=True,
         on_delete=models.SET_NULL,
         blank=True,
-        verbose_name='Местоположение'
+        verbose_name='Местоположение',
+        related_name='posts_in_location'
     )
     category = models.ForeignKey(
         Category,
         null=True,
         on_delete=models.SET_NULL,
-        verbose_name='Категория'
+        verbose_name='Категория',
+        related_name='posts_in_category'
     )
     image = models.ImageField('Фото', upload_to='posts_images', blank=True)
 
@@ -76,7 +80,7 @@ class Post(BlogModel):
 
 
 class Comment(models.Model):
-    text = models.TextField('Комментарий')
+    text = models.TextField('Комментарий', max_length=MAX_LENGTH_FOR_COMMENT)
     post = models.ForeignKey(
         Post,
         on_delete=models.CASCADE,
@@ -84,7 +88,8 @@ class Comment(models.Model):
     )
     author = models.ForeignKey(
         User,
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
+        related_name='comment_author'
     )
     created_at = models.DateTimeField(
         'Дата и время создания',
@@ -93,6 +98,8 @@ class Comment(models.Model):
 
     class Meta:
         ordering = ('created_at',)
+        verbose_name = 'Комментарий'
+        verbose_name_plural = 'Комменатрии'
 
     def __str__(self):
         return self.text[:MAX_LENGTH_TEXT]

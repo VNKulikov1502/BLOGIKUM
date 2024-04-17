@@ -1,18 +1,19 @@
-from datetime import datetime as dt
-
-from blog.models import Category, Comment, Post
-from core.constants import PAGINATOR
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.mixins import UserPassesTestMixin
 from django.core.paginator import Paginator
 from django.db.models import Count
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views.generic import CreateView, DeleteView, ListView, UpdateView
 
-from .forms import CommentForm, PostForm
+from blog.models import Category, Post
+from core.constants import PAGINATOR
+
+from .forms import CommentForm
+from .mixins import BaseCommentMixin, BasePostMixin, OnlyAuthorMixin
 
 User = get_user_model()
 
@@ -21,45 +22,6 @@ def get_related_post_list():
     """Функция возвращает объекты модели Post со связанными моделями."""
     return Post.objects.select_related(
         'category', 'location', 'author')
-
-
-class OnlyAuthorMixin(UserPassesTestMixin):
-    """Проверяет авторство публикаций"""
-
-    def test_func(self):
-        object = self.get_object()
-        return object.author == self.request.user
-
-
-class BasePostMixin(LoginRequiredMixin):
-    """Базовая логика для работы публикаций."""
-
-    model = Post
-    form_class = PostForm
-    template_name = 'blog/create.html'
-
-    def get_success_url(self):
-        return reverse(
-            'blog:profile',
-            kwargs={'username': self.request.user.username}
-        )
-
-
-class BaseCommentMixin(OnlyAuthorMixin):
-    """Базовая логика для удаления и редактирования комментов."""
-
-    model = Comment
-    form_class = CommentForm
-    template_name = 'blog/comment.html'
-    pk_url_kwarg = 'comment_id'
-
-    def get_queryset(self):
-        post_id = self.kwargs.get('post_id')
-        return get_object_or_404(Post, pk=post_id).comment.all()
-
-    def get_success_url(self):
-        post_id = self.kwargs.get('post_id')
-        return reverse('blog:post_detail', kwargs={'post_id': post_id})
 
 
 class IndexListView(ListView):
@@ -73,7 +35,7 @@ class IndexListView(ListView):
         queryset = get_related_post_list().filter(
             is_published=True,
             category__is_published=True,
-            pub_date__lte=dt.now()
+            pub_date__lte=timezone.now()
         ).annotate(comment_count=Count('comment')).order_by('-pub_date')
         return queryset
 
@@ -156,9 +118,7 @@ def add_comment(request, post_id):
 def get_profile(request, username):
     """Представление профиля пользователя."""
     profile = get_object_or_404(User, username=username)
-    publications = get_related_post_list().filter(
-        author__username=username
-    ).annotate(
+    publications = profile.posts.annotate(
         comment_count=Count('comment')
     ).order_by('-pub_date')
     paginator = Paginator(publications, PAGINATOR)
@@ -173,53 +133,47 @@ def get_profile(request, username):
 
 def post_detail(request: HttpRequest, post_id: int) -> HttpResponse:
     """Функция отображает отдельную публикацию."""
-    post = get_object_or_404(
-        get_related_post_list(),
-        pk=post_id,
-    )
-    if request.user == post.author:
-        form = CommentForm()
-        comment = post.comment.select_related('author')
-        context = {
-            'post': post,
-            'form': form,
-            'comments': comment
-        }
-        return render(request, 'blog/detail.html', context)
-    post = get_object_or_404(
-        get_related_post_list(),
-        is_published=True,
-        pub_date__lte=dt.now(),
-        category__is_published=True,
-        pk=post_id,
-    )
+    post = get_object_or_404(get_related_post_list(), pk=post_id)
     form = CommentForm()
-    comment = post.comment.select_related('author')
+    comments = post.comment.select_related('author')
     context = {
         'post': post,
         'form': form,
-        'comments': comment
+        'comments': comments
     }
-    return render(request, 'blog/detail.html', context)
+
+    if request.user == post.author:
+        return render(request, 'blog/detail.html', context)
+
+    if (
+        post.is_published
+        and post.pub_date <= timezone.now()
+        and post.category.is_published
+    ):
+        return render(request, 'blog/detail.html', context)
+
+    return render(request, 'pages/404.html', status=404)
 
 
 def category_posts(request: HttpRequest, category_slug: str) -> HttpResponse:
     """Функция отображает публикации в категории."""
-    post_list = Post.objects.filter(
-        is_published=True,
-        category__slug=category_slug,
-        pub_date__lte=dt.now(),
-    ).annotate(
-        comment_count=Count('comment')
-    ).order_by('-pub_date')
-    paginator = Paginator(post_list, PAGINATOR)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
     category = get_object_or_404(
         Category,
         is_published=True,
         slug=category_slug
     )
+
+    post_list = category.posts_in_category.filter(
+        pub_date__lte=timezone.now(),
+        is_published=True
+    ).annotate(
+        comment_count=Count('comment')
+    ).order_by('-pub_date')
+
+    paginator = Paginator(post_list, PAGINATOR)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     context: dict = {'category': category,
                      'page_obj': page_obj}
     return render(request, 'blog/category.html', context)
